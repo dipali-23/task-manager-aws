@@ -1,38 +1,55 @@
 import { useState, useEffect } from 'react'
 
-const LOCAL_STORAGE_KEY = 'task-manager-tasks'
+const API_URL = 'http://34.228.77.168:5001/tasks'
 
 export function useTasks() {
-  const [tasks, setTasks] = useState(() => {
-    // Initialize state from localStorage if available
-    const savedTasks = localStorage.getItem(LOCAL_STORAGE_KEY)
-    return savedTasks ? JSON.parse(savedTasks) : []
-  })
+  const [tasks, setTasks] = useState([])
 
-  // Save tasks to localStorage whenever they change
+  // 1. FETCH all tasks when the app loads
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(tasks))
-  }, [tasks])
+    fetch(API_URL)
+      .then(res => res.json())
+      .then(data => setTasks(data))
+      .catch(err => console.error("Error fetching tasks:", err))
+  }, [])
 
-  const addTask = (text) => {
-    const newTask = {
-      id: Date.now(), // Modern way to get a unique simple ID
-      text,
-      completed: false,
+  // 2. ADD task to the backend
+  const addTask = async (text) => {
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      })
+      const newTask = await response.json()
+      setTasks((prevTasks) => [...prevTasks, newTask])
+    } catch (err) {
+      console.error("Error adding task:", err)
     }
-    setTasks((prevTasks) => [...prevTasks, newTask])
   }
 
-  const toggleTask = (id) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
+  // 3. TOGGLE task completion on the backend
+  const toggleTask = async (id) => {
+    try {
+      await fetch(`${API_URL}/${id}`, { method: 'PUT' })
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === id ? { ...task, completed: !task.completed } : task
+        )
       )
-    )
+    } catch (err) {
+      console.error("Error toggling task:", err)
+    }
   }
 
-  const deleteTask = (id) => {
-    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id))
+  // 4. DELETE task from the backend
+  const deleteTask = async (id) => {
+    try {
+      await fetch(`${API_URL}/${id}`, { method: 'DELETE' })
+      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id))
+    } catch (err) {
+      console.error("Error deleting task:", err)
+    }
   }
 
   return {
